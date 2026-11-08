@@ -1,0 +1,71 @@
+{
+  "date_moscow": "2026-11-08",
+  "version": "motion-update",
+  "python": "3.9.6",
+  "python_3_14_available": false,
+  "server_tests": {
+    "command": "python3 scripts/check_resources.py",
+    "passed": 15,
+    "failed": 0,
+    "seconds": 5.873
+  },
+  "javascript_logic_tests": {
+    "file": "tests/test_motion.js",
+    "runner": "bundled Node runtime, runChecks()",
+    "passed": 11,
+    "failed": 0,
+    "scope": "isolated DOM and timer model, no browser rendering"
+  },
+  "new_browser_checks_completed_before_limit": {
+    "date": "2026-11-07",
+    "viewport_width": 1280,
+    "login_alisa": true,
+    "modal_transition_seconds": 0.2,
+    "login_animation_seconds": 0.22,
+    "double_open_one_modal": true,
+    "background_inert": true,
+    "tab_shift_tab": true,
+    "escape_and_focus_return": true,
+    "double_submit_saved_once": true,
+    "real_server_success_toast": true
+  },
+  "new_browser_checks_blocked": [
+    "360 px",
+    "real prefers-reduced-motion",
+    "server error UI",
+    "both accounts after motion update",
+    "full visual review",
+    "new screenshots/video"
+  ],
+  "browser_blocker": "Automatic approval review denied origin access because the usage limit was exhausted; retry on resume also denied. No browser workarounds used.",
+  "references": [
+    {
+      "url": "https://motion.dev/docs/animate",
+      "reviewed": true
+    },
+    {
+      "url": "https://motion.dev/docs/press",
+      "reviewed": true
+    },
+    {
+      "url": "https://animista.net/play/entrances/fade-in/fade-in-bottom",
+      "reviewed": true,
+      "note": "Preview opened and Replay selected after transient 403"
+    }
+  ],
+  "new_dependencies": [],
+  "csp_changed": false,
+  "runtime_data_in_archive": false,
+  "model": "точная модель не установлена",
+  "local_preview": {
+    "url": "http://127.0.0.1:8001/",
+    "state": "left running",
+    "database": "separate temporary demo database, excluded from archive"
+  },
+  "previous_final_results_note": "See final-check.md; previous mobile/browser results are history, not a new animation test.",
+  "clean_archive_checks": {
+    "server_tests_passed": 15,
+    "javascript_model_tests_passed": 11,
+    "code_matches_tested_copy": true
+  }
+}
