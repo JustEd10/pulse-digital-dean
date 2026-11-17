@@ -5,6 +5,7 @@ import hmac
 import ipaddress
 import json
 import os
+import re
 import secrets
 import sqlite3
 import time
@@ -20,6 +21,7 @@ DB_PATH = Path(os.environ.get('PULSE_DB', str(ROOT / 'data' / 'pulse.sqlite3')))
 TRUSTED_PROXY_IPS = {v.strip() for v in os.environ.get('TRUSTED_PROXY_IPS', '').split(',') if v.strip()}
 MOSCOW = timezone(timedelta(hours=3))
 KINDS = {'study': 'Справка об обучении', 'scholarship': 'Справка о стипендии', 'application': 'Заявление в деканат'}
+SCHEDULE_NOTICE = 'На этой неделе два семинара перенесены из аудитории 304 в 412. Изменения отмечены в расписании.'
 USERS = [
     (1, 'alisa', '79cfb4a3011d12bf05cc802862a41f00', 'cfcc38b5c2959f6035f38ce72dc42b4d8fb83f3d9b5d36bf20326c0156b87f79', 'Алиса', 'Алиса Романовна Лескова', 'Институт цифровой экономики', 'Бизнес-информатика', 2, 'БИ-24-03', 'АЛ', '2024-0318'),
     (2, 'mark', '3bbd97fb0bea4cb4ccbffe578df23ee7', '8aff3c621255526dc10e2b97bb721734fed0051c7a153a69fec8074b62fb3d52', 'Марк', 'Марк Андреевич Ветров', 'Институт управления', 'Менеджмент', 3, 'МН-23-01', 'МВ', '2023-0126'),
@@ -66,13 +68,20 @@ def init_db():
             db.execute('INSERT OR IGNORE INTO requests VALUES (?,?,?,?,?,?,?,?)',
                        ('demo-%s' % uid, uid, 'study', 'По месту требования', 1, 'ready', (now-timedelta(days=2)).isoformat(), 'Демонстрационный документ. Можно скачать образец.'))
             for i, row in enumerate([
-                ('Изменение аудитории', 'Ближайший семинар перенесён из аудитории 304 в 412. В расписании уже всё обновлено.', 'schedule'),
-                ('Пора выбрать тему проекта', 'Согласуйте тему курсового проекта с руководителем до 12 ноября. Отметьте дело выполненным, когда будете готовы.', 'deadline'),
+                ('Изменение аудитории', SCHEDULE_NOTICE, 'schedule'),
+                ('Пора выбрать тему проекта', 'Согласуй тему курсового проекта с руководителем до 27 ноября. Отметь дело выполненным, когда будешь готов.', 'deadline'),
                 ('Справка готова', 'Ваш демонстрационный образец справки доступен в разделе «Заявки и справки».', 'request'),
             ]):
                 db.execute('INSERT OR IGNORE INTO notifications VALUES (?,?,?,?,?,?)', (uid*10+i, uid, *row, 0))
-            for i, row in enumerate([('Выбрать тему курсовой', 'До 12 ноября'), ('Загрузить практическую работу', 'До 10 ноября')]):
+            db.execute('UPDATE notifications SET body=? WHERE id=? AND body=?',
+                       (SCHEDULE_NOTICE, uid*10, 'Ближайший семинар перенесён из аудитории 304 в 412. В расписании уже всё обновлено.'))
+            db.execute('UPDATE notifications SET body=? WHERE id=? AND body=?',
+                       ('Согласуй тему курсового проекта с руководителем до 27 ноября. Отметь дело выполненным, когда будешь готов.',
+                        uid*10+1, 'Согласуйте тему курсового проекта с руководителем до 12 ноября. Отметьте дело выполненным, когда будете готовы.'))
+            for i, row in enumerate([('Выбрать тему курсовой', 'До 27 ноября'), ('Загрузить практическую работу', 'До 25 ноября')]):
                 db.execute('INSERT OR IGNORE INTO tasks VALUES (?,?,?,?,?)', (uid*10+i, uid, *row, 0))
+                db.execute('UPDATE tasks SET due=? WHERE id=? AND due=?',
+                           (row[1], uid*10+i, ('До 12 ноября', 'До 10 ноября')[i]))
     try:
         os.chmod(DB_PATH, 0o600)
     except OSError:
@@ -101,7 +110,8 @@ def timetable(uid):
         if d != 6:
             for i, (start, end) in enumerate([('09:00', '10:30'), ('10:40', '12:10'), ('13:00', '14:30')][:2 if d == 5 else 3]):
                 idx = (d+i+uid-1) % 5
-                items.append(dict(id='%s-%s-%s' % (uid,d,i), start=start, end=end, name=subjects[idx]['name'], type='Семинар' if i%2 else 'Лекция', room='412' if i==1 else str(301+d), building='Корпус 2', teacher=teachers[(d+i)%4], changed=i==1, change='Аудитория 304 → 412' if i==1 else None))
+                changed = i == 1 and d in (2, 4)
+                items.append(dict(id='%s-%s-%s' % (uid,d,i), start=start, end=end, name=subjects[idx]['name'], type='Семинар' if i%2 else 'Лекция', room=('412' if changed else '304') if i==1 else str(301+d), building='Корпус 2', teacher=teachers[(d+i)%4], changed=changed, change='Аудитория 304 → 412' if changed else None))
         days.append(dict(date=date.isoformat(), today=date==today, items=items))
     return days
 
@@ -166,6 +176,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
             self.get()
+        except ValueError:
+            self.send_data(400, {'error': 'Некорректный адрес'})
         except (sqlite3.Error, OSError):
             self.send_data(500, {'error': 'Не удалось загрузить данные. Попробуйте ещё раз.'})
 
@@ -240,25 +252,24 @@ class Handler(BaseHTTPRequestHandler):
                 if not isinstance(login, str) or not isinstance(password, str) or len(login)>80 or len(password)>200:
                     raise ValueError()
                 login = login.strip().lower()
-                keys = ['ip:'+self.client_ip(), 'login:'+login]
+                key = 'ip:'+self.client_ip()
                 now = time.time()
-                db.execute('DELETE FROM attempts WHERE reset<?', (now,))
-                for key in keys:
-                    old = db.execute('SELECT * FROM attempts WHERE key=?', (key,)).fetchone()
-                    if old and old['reset']>now and old['count']>=10:
-                        self.send_data(429, {'error': 'Слишком много попыток. Подождите 5 минут.'})
-                        return
+                old = db.execute('SELECT count, reset FROM attempts WHERE key=?', (key,)).fetchone()
+                if old and old['reset']>now and old['count']>=10:
+                    self.send_data(429, {'error': 'Слишком много попыток. Подождите до 5 минут.'},
+                                   extra={'Retry-After': str(max(1, int(old['reset']-now)+1))})
+                    return
                 user = db.execute('SELECT * FROM users WHERE login=?', (login,)).fetchone()
                 salt = user['salt'] if user else USERS[0][2]
                 check = hashlib.pbkdf2_hmac('sha256', password.encode(), bytes.fromhex(salt), 600000).hex()
+                now = time.time()
+                db.execute('DELETE FROM attempts WHERE reset<?', (now,))
                 if not user or not hmac.compare_digest(check, user['password_hash']):
-                    for key in keys:
-                        db.execute('INSERT INTO attempts VALUES (?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN reset<? THEN 1 ELSE count+1 END, reset=CASE WHEN reset<? THEN ? ELSE reset END', (key, now+300, now, now, now+300))
+                    db.execute('INSERT INTO attempts VALUES (?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1', (key, now+300))
                     db.commit()
                     self.send_data(401, {'error': 'Неверный логин или пароль'})
                     return
-                for key in keys:
-                    db.execute('DELETE FROM attempts WHERE key=?', (key,))
+                db.execute('DELETE FROM attempts WHERE key=?', (key,))
                 db.execute('DELETE FROM sessions WHERE expires<?', (now,))
                 current = self.session(db)
                 if current:
@@ -285,11 +296,19 @@ class Handler(BaseHTTPRequestHandler):
                 kind, purpose, copies = data.get('kind'), data.get('purpose', ''), data.get('copies', 1)
                 if not isinstance(kind,str) or kind not in KINDS or not isinstance(purpose,str) or not 3<=len(purpose.strip())<=500 or type(copies) is not int or not 1<=copies<=3:
                     raise ValueError()
-                rid = secrets.token_hex(8)
-                db.execute('INSERT INTO requests VALUES (?,?,?,?,?,?,?,?)', (rid, uid, kind, purpose.strip(), copies, 'submitted', datetime.now(MOSCOW).isoformat(), 'Заявка сохранена. В прототипе сотрудник её не обрабатывает; статус не меняется автоматически.'))
+                retry_key = data.get('retry_key')
+                if retry_key is not None and (not isinstance(retry_key, str) or not re.fullmatch(r'[a-f0-9]{32}', retry_key)):
+                    raise ValueError()
+                purpose = purpose.strip()
+                rid = hashlib.sha256(f'{uid}:{retry_key}'.encode()).hexdigest()[:32] if retry_key else secrets.token_hex(8)
+                created = db.execute('INSERT INTO requests VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING',
+                                     (rid, uid, kind, purpose, copies, 'submitted', datetime.now(MOSCOW).isoformat(), 'Заявка сохранена. В прототипе сотрудник её не обрабатывает; статус не меняется автоматически.')).rowcount
                 db.commit()
                 saved = db.execute('SELECT * FROM requests WHERE id=? AND user_id=?', (rid, uid)).fetchone()
-                self.send_data(201, {'id': rid, 'request': dict(saved)})
+                if not saved or (saved['kind'], saved['purpose'], saved['copies']) != (kind, purpose, copies):
+                    self.send_data(409, {'error': 'Эта попытка уже связана с другой заявкой.'})
+                    return
+                self.send_data(201 if created else 200, {'id': rid, 'request': dict(saved)})
             elif path == '/api/notifications/read':
                 nid = data.get('id')
                 if nid != 'all' and type(nid) is not int:
