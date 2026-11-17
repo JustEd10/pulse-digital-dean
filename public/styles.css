@@ -45,7 +45,7 @@ button:not(.stat-card):not(.request-card):not(.notice-preview):not(.task):not(:d
 
 /* Pulse motion edition: spatial transitions, tactile controls, finite illustration choreography. */
 :root{--motion-enter:cubic-bezier(.16,1,.3,1);--motion-fast:180ms}
-@keyframes pulse-page-in{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes pulse-page-in{from{opacity:.65;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes pulse-nav-icon{0%{transform:scale(.7) translateY(3px)}55%{transform:scale(1.18) translateY(-2px)}100%{transform:none}}
 @keyframes pulse-nav-line{from{transform:scaleX(.1);opacity:.3}to{transform:scaleX(1);opacity:1}}
 @keyframes pulse-book-in{from{opacity:0;transform:translateY(35px) rotate(-12deg)}to{opacity:1;transform:translateY(0) rotate(8deg)}}
@@ -61,18 +61,18 @@ button:not(.stat-card):not(.request-card):not(.notice-preview):not(.task):not(:d
 @keyframes pulse-error-nudge{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 
 /* Content is immediately interactive; animations do not delay requests or navigation. */
-.section-enter>*{animation:pulse-page-in 480ms var(--motion-enter) both}
-.section-enter>.welcome-banner,.section-enter>.stat-grid{animation-name:pulse-page-in;animation-duration:480ms}
-.section-enter>.motion-step-0{animation-delay:0ms}.section-enter>.motion-step-1{animation-delay:45ms}.section-enter>.motion-step-2{animation-delay:90ms}.section-enter>.motion-step-3{animation-delay:135ms}.section-enter>.motion-step-4{animation-delay:160ms}.section-enter>.motion-step-5,.section-enter>.motion-step-6,.section-enter>.motion-step-7{animation-delay:180ms}
-.section-enter .dashboard-grid>.panel{animation:pulse-page-in 480ms var(--motion-enter) both}
-.section-enter .dashboard-grid>.panel:nth-child(2){animation-delay:70ms}.section-enter .dashboard-grid>.panel:nth-child(3){animation-delay:140ms}.section-enter .dashboard-grid>.panel:nth-child(4){animation-delay:200ms}
-.section-enter .stat-card{animation:pulse-page-in 440ms var(--motion-enter) both}
-.section-enter .stat-card:nth-child(2){animation-delay:70ms}.section-enter .stat-card:nth-child(3){animation-delay:140ms}
+.section-enter>*{animation:pulse-page-in 220ms var(--motion-enter) both}
+.section-enter>.welcome-banner,.section-enter>.stat-grid{animation-name:pulse-page-in;animation-duration:220ms}
+.section-enter>.motion-step-0{animation-delay:0ms}.section-enter>.motion-step-1{animation-delay:20ms}.section-enter>.motion-step-2{animation-delay:35ms}.section-enter>.motion-step-3{animation-delay:50ms}.section-enter>.motion-step-4{animation-delay:60ms}.section-enter>.motion-step-5,.section-enter>.motion-step-6,.section-enter>.motion-step-7{animation-delay:70ms}
+.section-enter .dashboard-grid>.panel{animation:pulse-page-in 220ms var(--motion-enter) both}
+.section-enter .dashboard-grid>.panel:nth-child(2){animation-delay:35ms}.section-enter .dashboard-grid>.panel:nth-child(3){animation-delay:55ms}.section-enter .dashboard-grid>.panel:nth-child(4){animation-delay:70ms}
+.section-enter .stat-card{animation:pulse-page-in 220ms var(--motion-enter) both}
+.section-enter .stat-card:nth-child(2){animation-delay:35ms}.section-enter .stat-card:nth-child(3){animation-delay:55ms}
 .home-enter .book-front,.section-enter .book-front{animation:pulse-book-in 900ms var(--motion-enter) 100ms both}
 .home-enter .book-back,.section-enter .book-back{animation:pulse-book-back-in 900ms var(--motion-enter) 180ms both}
 .home-enter .art-disc,.section-enter .art-disc{animation:pulse-disc-in 1100ms var(--motion-enter) 250ms both}
 .home-enter .mini-card,.section-enter .mini-card{animation:pulse-note-in 750ms var(--motion-enter) 450ms both}
-.login-enter .login-form-wrap{animation:pulse-page-in 650ms var(--motion-enter) both}
+.login-enter .login-form-wrap{animation:pulse-page-in 280ms var(--motion-enter) both}
 .login-enter .login-pitch h1{animation:pulse-page-in 700ms var(--motion-enter) both}
 .login-enter .orbit{animation:pulse-orbit-in 1400ms var(--motion-enter) both}
 .login-enter .orbit-two{animation-delay:120ms}
@@ -119,4 +119,22 @@ button:not(.stat-card):not(.request-card):not(.notice-preview):not(.task):not(:d
  .section-enter>*,.section-enter .dashboard-grid>.panel,.section-enter .stat-card{opacity:1;transform:none}
  .button:active,.stat-card:hover,.request-card:hover,.close-button:hover{transform:none!important}
  .button:before{display:none}
+}
+
+@media(max-width:650px){
+ .welcome-banner{min-height:0;margin-bottom:12px}
+ .welcome-copy{padding:17px 16px}
+ .welcome-copy .banner-pill,.welcome-copy p,.welcome-copy .welcome-extra{display:none}
+ .welcome-copy h2{max-width:185px;margin-bottom:12px;font-size:19px}
+ .welcome-copy .button{min-height:44px;font-size:11px}
+ .banner-art{right:-5px}
+ .book-shape{width:68px;height:93px;top:29px;padding:12px 7px}
+ .book-back{top:24px}
+ .book-front>span{font-size:13px}
+ .book-rule{margin:8px 0 4px}
+ .art-disc{top:6px;font-size:34px}
+ .stat-card{padding:10px 9px}
+ .stat-card .stat-icon{margin-bottom:5px}
+ .stat-label,.stat-card strong small{font-size:10px;color:#655c72}
+ .mobile-nav a{font-size:10px;color:#685e77;min-width:0;flex:1}
 }
